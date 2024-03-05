@@ -5,7 +5,7 @@ import os
 import xarray as xr
 import pandas as pd
 # %%
-N_EPOCHS = 100 #total number of epochs
+N_EPOCHS = 50 #total number of epochs
 LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
 EPOCH_SIZE = 20 #days (x24 samples)  
 BATCH_SIZE = 24 #samples per mini-batch
@@ -17,7 +17,7 @@ nvar = len(CHEM)
 n_stn = 439
 
 # %%
-root_path = '/home/pjs/_scratch/script/ML/down_pjs/'
+root_path = '/home/pjs/down_pjs/'
 train_dir = 'train'
 valid_dir = 'valid/preproc'
 out_dir = 'output'
@@ -83,11 +83,12 @@ from utils import normalize, denormalize
 
 DEVICE = torch.device('cuda')
 edrn = edrn_core(nvar,n_stn=n_stn).to(DEVICE)
-LEARNING_RATE = 0.001
-optimizer = optim.RMSprop(edrn.parameters(), lr=LEARNING_RATE, weight_decay=1e-8, momentum=0.9)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
+LEARNING_RATE = 1e-6
+optimizer = optim.SGD(edrn.parameters(), lr=LEARNING_RATE, weight_decay=1e-8)
+#scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
 grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
-loss_function = nn.CrossEntropyLoss()
+loss_function = nn.MSELoss()
+
 print("define train iteration")
 
 def train(model):
@@ -113,6 +114,8 @@ def train(model):
                 obs_o3 = batch[1].to(device=DEVICE,dtype=torch.float32)
                 pred = model(wrf_in)
                 denormalize(pred,MU[0],SIGMA[0])
+                print("Prediction : " + str(pred.mean()))
+                print("Observation : " + str(obs_o3.mean()))
                 loss = loss_function(pred,obs_o3)
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
