@@ -8,11 +8,11 @@ import pandas as pd
 N_EPOCHS = 100 #total number of epochs
 LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
 EPOCH_SIZE = 20 #days (x24 samples)  
-BATCH_SIZE = 12 #samples per mini-batch
+BATCH_SIZE = 24 #samples per mini-batch
 VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
 CHIP_SHAPE = (35,35) #size of the samples used for training (hi-res size)
 Ny, Nx = CHIP_SHAPE
-CHEM = ["O3_SRF","NO2_SRF"]
+CHEM = ["O3_SRF","NO2_SRF"]   # O3_SRF must be included in the list and located at first component.
 nvar = len(CHEM)
 n_stn = 439
 
@@ -63,8 +63,8 @@ def get_epoch():
 
     true_val = np.zeros(shape=(N,n_stn))
     for i in range(EPOCH_SIZE):
-        df = pd.read_csv(true_files_tmp[i])
-        true_val[i*24:(i+1)*24,:] = df.sort_values(['stn','date'],ascending=True)['O3'].to_numpy().reshape(439,24).T
+        df = nc.Dataset(true_files_tmp[i])
+        true_val[i*24:(i+1)*24,:] = df["O3"][:]
 
     return train_val, true_val
             
@@ -98,8 +98,7 @@ def train(model):
     model.train()
     for e in range(1,N_EPOCHS+1):
         x_train, x_true = get_epoch()
-        x_train = normalize(x_train)
-
+        normalize(x_train,MU,SIGMA)
         # Make dataset and dataloader in tensor format
         # This process enables NN to use mini-batch
         x_train_tensor = torch.from_numpy(x_train)   #.to(device=DEVICE,dtype=torch.float32)
@@ -113,7 +112,7 @@ def train(model):
                 wrf_in = batch[0].to(device=DEVICE,dtype=torch.float32)
                 obs_o3 = batch[1].to(device=DEVICE,dtype=torch.float32)
                 pred = model(wrf_in)
-                pred = denormalize(pred)
+                denormalize(pred,MU[0],SIGMA[0])
                 loss = loss_function(pred,obs_o3)
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
