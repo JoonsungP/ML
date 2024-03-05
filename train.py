@@ -5,9 +5,9 @@ import os
 import xarray as xr
 import pandas as pd
 # %%
-N_EPOCHS = 50 #total number of epochs
+N_EPOCHS = 100 #total number of epochs
 LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
-EPOCH_SIZE = 20 #days (x24 samples)  
+EPOCH_SIZE = 40 #days (x24 samples)  
 BATCH_SIZE = 24 #samples per mini-batch
 VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
 CHIP_SHAPE = (35,35) #size of the samples used for training (hi-res size)
@@ -82,10 +82,10 @@ from torch import optim
 from utils import normalize, denormalize
 
 DEVICE = torch.device('cuda')
-edrn = edrn_core(nvar,n_stn=n_stn).to(DEVICE)
-LEARNING_RATE = 1e-6
+edrn = edrn_core(nvar,n_block = 5,n_stn=n_stn).to(DEVICE)
+LEARNING_RATE = 1e-3
 optimizer = optim.SGD(edrn.parameters(), lr=LEARNING_RATE, weight_decay=1e-8)
-#scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
 grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
 loss_function = nn.MSELoss()
 
@@ -104,20 +104,22 @@ def train(model):
         # This process enables NN to use mini-batch
         x_train_tensor = torch.from_numpy(x_train)   #.to(device=DEVICE,dtype=torch.float32)
         x_true_tensor = torch.from_numpy(x_true)     # .to(device=DEVICE,dtype=torch.float32)
+        x_true_tensor[x_true_tensor<0] = 0   # remove negative O3 value.
         ds = TensorDataset(x_train_tensor,x_true_tensor)
         train_loader = DataLoader(ds,shuffle=True, batch_size=BATCH_SIZE)
         gc.collect()   # garbage memory collector
         epoch_loss = 0
-        with tqdm(total=BATCH_SIZE,desc=f'Epoch {e}/{N_EPOCHS}') as pbar :
+        with tqdm(total=EPOCH_SIZE,desc=f'Epoch {e}/{N_EPOCHS}') as pbar :
             for iter, batch in enumerate(train_loader):   # train mini-batches
                 wrf_in = batch[0].to(device=DEVICE,dtype=torch.float32)
                 obs_o3 = batch[1].to(device=DEVICE,dtype=torch.float32)
                 pred = model(wrf_in)
-                denormalize(pred,MU[0],SIGMA[0])
+                #denormalize(pred,MU[0],SIGMA[0])
                 print("Prediction : " + str(pred.mean()))
                 print("Observation : " + str(obs_o3.mean()))
                 loss = loss_function(pred,obs_o3)
                 optimizer.zero_grad(set_to_none=True)
+                scheduler.step(loss)
                 grad_scaler.scale(loss).backward()
                 grad_scaler.step(optimizer)
                 grad_scaler.update()

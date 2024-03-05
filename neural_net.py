@@ -10,16 +10,15 @@ class edrn_core(nn.Module):
         self.init_conv = nn.Conv2d(nvar,res_chan,kernel_size=8,padding=2,bias=False)          # 9x9x64 before EDRN core (8x8x64 in here)
         self.res_block = nn.Sequential(
             nn.Conv2d(res_chan,res_chan,kernel_size=3,padding=1,bias=False),
-            nn.BatchNorm2d(res_chan),
             nn.ReLU(inplace=True),
-            nn.Conv2d(res_chan,res_chan,kernel_size=3,padding=1,bias=False),
-            nn.BatchNorm2d(res_chan))
+            nn.Conv2d(res_chan,res_chan,kernel_size=3,padding=1,bias=False))
+
         #self.upsampling = nn.Sequential(
         #    nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
         self.out_conv = nn.Conv2d(res_chan,res_chan*nvar,kernel_size=5,padding=2,bias=False)
         self.fc = nn.Sequential(
-            nn.Linear(res_chan*nvar*32*32,64*64),
-            nn.Linear(64*64,n_stn)
+            nn.Linear(res_chan*nvar*32*32,n_stn),
+            nn.ReLU(inplace=True)
         )
     def forward(self,x):
         x = self.init_conv(x)
