@@ -5,17 +5,16 @@ import os
 import xarray as xr
 import pandas as pd
 # %%
-N_EPOCHS = 100 #total number of epochs
-LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
-EPOCH_SIZE = 40 #days (x24 samples)  
+N_EPOCHS = 200 #total number of epochs
+#LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
+EPOCH_SIZE = 50 #days (x24 samples)  
 BATCH_SIZE = 24 #samples per mini-batch
 VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
 CHIP_SHAPE = (35,35) #size of the samples used for training (hi-res size)
 Ny, Nx = CHIP_SHAPE
-CHEM = ["O3_SRF","NO2_SRF"]   # O3_SRF must be included in the list and located at first component.
+CHEM = ["O3_SRF"]   # O3_SRF must be included in the list and located at first component.
 nvar = len(CHEM)
-n_stn = 439
-
+n_stn = 439      # Number of stations
 # %%
 root_path = '/home/pjs/down_pjs/'
 train_dir = 'train'
