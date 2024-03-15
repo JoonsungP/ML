@@ -5,6 +5,9 @@ import os
 import xarray as xr
 import pandas as pd
 # %%
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  # Arrange GPU devices starting from 0
+os.environ["CUDA_VISIBLE_DEVICES"]= "2"  # Set the GPU 2 to use
 N_EPOCHS = 200 #total number of epochs
 #LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
 EPOCH_SIZE = 50 #days (x24 samples)  
