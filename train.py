@@ -16,6 +16,7 @@ CHIP_SHAPE = (27, 27) #size of the samples used for training (hi-res size)
 Ny, Nx = CHIP_SHAPE
 CHEM = ["O3"]   # O3_SRF must be included in the list and located at first component.
 nvar = len(CHEM)
+print("Set Parameters")
 n_stn = 438      # Number of stations
 # %%
 
