@@ -1,5 +1,6 @@
 #!/bin/bash -l
 
+
 #PBS -N downscale
 #PBS --gres=gpu:1
 #PBS --nodes=1
@@ -11,5 +12,6 @@ export OMP_NUM_THREADS=1
 which conda
 conda activate py39
 python /home/yjj/Work/Downscaling/cnn/ML/train.py
+
 
 exit 0
