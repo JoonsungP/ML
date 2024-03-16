@@ -18,6 +18,7 @@ CHEM = ["O3"]   # O3_SRF must be included in the list and located at first compo
 nvar = len(CHEM)
 print("Set Parameters")
 n_stn = 438      # Number of stations
+print("Set parameter")
 # %%
 
 
