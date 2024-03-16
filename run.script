@@ -1,16 +1,15 @@
 #!/bin/bash -l
 
-#SBATCH -J downscale
-#SBATCH --gres=gpu:1
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --time=24:00:00
-#SBATCH -o %x.o%j
-#SBATCH -e %x.e%j
+#PBS -N downscale
+#PBS --gres=gpu:1
+#PBS --nodes=1
+#PBS --ntasks-per-node=1
+#PBS --time=24:00:00
+#PBS -j oe
 
 export OMP_NUM_THREADS=1
 which conda
-conda activate ML
-python train.py
+conda activate py39
+python /home/yjj/Work/Downscaling/cnn/ML/train.py
 
 exit 0

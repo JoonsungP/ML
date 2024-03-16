@@ -2,27 +2,28 @@
 import numpy as np
 import netCDF4 as nc
 import os
+import xarray as xr
 import pandas as pd
 # %%
 N_EPOCHS = 200 #total number of epochs
 #LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
-EPOCH_SIZE = 20 #days (x24 samples)  
+EPOCH_SIZE = 50 #days (x24 samples)  
 BATCH_SIZE = 24 #samples per mini-batch
 VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
-CHIP_SHAPE = (27, 27) #size of the samples used for training (hi-res size)
+CHIP_SHAPE = (35,35) #size of the samples used for training (hi-res size)
 Ny, Nx = CHIP_SHAPE
-CHEM = ["O3"]   # O3_SRF must be included in the list and located at first component.
+CHEM = ["O3_SRF"]   # O3_SRF must be included in the list and located at first component.
 nvar = len(CHEM)
-n_stn = 438      # Number of stations
+n_stn = 439      # Number of stations
 # %%
-root_path = '/home/yjj/Data/WRFGC_SSP5/imsi/' #imsi > Post
-#train_dir = 'train'
-#valid_dir = 'valid/preproc'
-out_dir = '/output/'
-train_path = root_path + '2016/'
-obs_path = '/home/yjj/Data/Airkorea/Post/O3/krig/'
-true_path = obs_path+'2016/'
-valid_path = obs_path+'2017/'
+root_path = '/home/pjs/down_pjs/'
+train_dir = 'train'
+valid_dir = 'valid/preproc'
+out_dir = 'output'
+train_path = root_path + train_dir
+obs_path = root_path + valid_dir
+true_path = obs_path+"/2016"
+valid_path = obs_path+"/2018"
 
 train_list = os.listdir(train_path)
 # Manually indicating the year of observation
@@ -32,10 +33,10 @@ valid_list = os.listdir(valid_path)
 
 ntrain_files = len(train_list)
 
-# %%
+
 # Calculate mean and standard deviation
-train_file_list = [train_path+d for d in train_list]
-total_train_nc = nc.MFDataset(train_file_list, aggdim="Time")
+train_file_list = [train_path+"/"+d for d in train_list]
+total_train_nc = nc.MFDataset(train_file_list,aggdim="Time")
 MU = []
 SIGMA = []
 for i in range(nvar):
@@ -48,21 +49,21 @@ del(chem_val_tmp,total_train_nc)
 
 # Define function that reads train and true data from wrfout and airkorea
 def get_epoch():
-    N = EPOCH_SIZE # Size of time dimension for a sample of each epoch
+    N = EPOCH_SIZE*24 # Size of time dimension for a sample of each epoch
     date_index = np.random.randint(0,ntrain_files-1,(EPOCH_SIZE,))
-    train_files_tmp = [train_path+train_list[d] for d in date_index]
-    true_files_tmp = [true_path+true_list[d] for d in date_index]
+    train_files_tmp = [train_path+"/"+train_list[d] for d in date_index]
+    true_files_tmp = [true_path+"/"+true_list[d] for d in date_index]
 
     train_val = np.zeros(shape=(N,nvar,Ny,Nx),dtype='float32')
     for i in range(EPOCH_SIZE):
         fopen = nc.Dataset(train_files_tmp[i])
         for j in range(nvar):
-            train_val[i,j,:,:] = fopen[CHEM[j]][:]
+            train_val[i*24:(i+1)*24,j] = fopen[CHEM[j]][:]
 
     true_val = np.zeros(shape=(N,n_stn))
     for i in range(EPOCH_SIZE):
         df = nc.Dataset(true_files_tmp[i])
-        true_val[i,:] = df["O3"][:]
+        true_val[i*24:(i+1)*24,:] = df["O3"][:]
 
     return train_val, true_val
             
@@ -80,7 +81,7 @@ from torch import optim
 from utils import normalize, denormalize
 
 DEVICE = torch.device('cuda')
-edrn = edrn_core(nvar, n_block=5, n_stn=n_stn).to(DEVICE)
+edrn = edrn_core(nvar,n_block = 5,n_stn=n_stn).to(DEVICE)
 LEARNING_RATE = 1e-3
 optimizer = optim.SGD(edrn.parameters(), lr=LEARNING_RATE, weight_decay=1e-8)
 scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
@@ -90,8 +91,7 @@ loss_function = nn.MSELoss()
 print("define train iteration")
 
 def train(model):
-    #save_dir = root_path + out_dir
-    save_dir = '.' + out_dir
+    save_dir = root_path + '/' + out_dir
     #threader = concurrent.futures.ThreadPoolExecutor(max_workers=2)
     TL, VL, MAE = [],[],[]
     
