@@ -6,7 +6,7 @@ import pandas as pd
 # %%
 N_EPOCHS = 200 #total number of epochs
 #LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
-EPOCH_SIZE = 20 #days (x24 samples)  
+EPOCH_SIZE = 30 #days (x24 samples)  
 BATCH_SIZE = 24 #samples per mini-batch
 VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
 CHIP_SHAPE = (27, 27) #size of the samples used for training (hi-res size)
@@ -15,6 +15,8 @@ CHEM = ["O3"]   # O3_SRF must be included in the list and located at first compo
 nvar = len(CHEM)
 n_stn = 438      # Number of stations
 # %%
+
+
 root_path = '/home/yjj/Data/WRFGC_SSP5/imsi/' #imsi > Post
 #train_dir = 'train'
 #valid_dir = 'valid/preproc'
