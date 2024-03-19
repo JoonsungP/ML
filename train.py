@@ -1,27 +1,26 @@
 # %%
 import numpy as np
-import netCDF4 as nc
 import os
 import pandas as pd
+import netCDF4 as nc
+import xarray as xr
 # %%
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  # Arrange GPU devices starting from 0
-os.environ["CUDA_VISIBLE_DEVICES"]= "2"  # Set the GPU 2 to use
-N_EPOCHS = 200 #total number of epochs
-#LR_REDUCE = 20 #after how many epochs to reduce the learning rate by 1/10
-EPOCH_SIZE = 30 #days (x24 samples)  
-BATCH_SIZE = 24 #samples per mini-batch
-VALID_FREQ = 10 #use only every Nth day from the validation set (for speed)
-CHIP_SHAPE = (27, 27) #size of the samples used for training (hi-res size)
+os.environ["CUDA_VISIBLE_DEVICES"]= "2"       # Set the GPU 2 to use
+N_EPOCHS = 200                                # total number of epochs
+#LR_REDUCE = 20                               # after how many epochs to reduce the learning rate by 1/10
+EPOCH_SIZE = 30                               # idays (x24 samples)  
+BATCH_SIZE = 24                               # samples per mini-batch
+VALID_FREQ = 10                               # use only every Nth day from the validation set (for speed)
+CHIP_SHAPE = (27, 27)                         # size of the samples used for training (hi-res size)
 Ny, Nx = CHIP_SHAPE
-CHEM = ["O3"]   # O3_SRF must be included in the list and located at first component.
+CHEM = ["O3"]                                 # "O3" must be included in the list and located at first component.
 nvar = len(CHEM)
 print("Set Parameters")
 n_stn = 438      # Number of stations
 print("Set parameter")
-# %%
-
-
+# %% 
 root_path = '/home/yjj/Data/WRFGC_SSP5/imsi/' #imsi > Post
 #train_dir = 'train'
 #valid_dir = 'valid/preproc'
@@ -42,7 +41,7 @@ ntrain_files = len(train_list)
 # %%
 # Calculate mean and standard deviation
 train_file_list = [train_path+d for d in train_list]
-total_train_nc = nc.MFDataset(train_file_list, aggdim="Time")
+total_train_nc = nc.MFDataset(train_file_list, aggdim="time")
 MU = []
 SIGMA = []
 for i in range(nvar):
@@ -51,7 +50,7 @@ for i in range(nvar):
     SIGMA.append(chem_val_tmp.std())
 
 del(chem_val_tmp,total_train_nc)
-# %%
+ # %%
 
 # Define function that reads train and true data from wrfout and airkorea
 def get_epoch():
@@ -60,11 +59,12 @@ def get_epoch():
     train_files_tmp = [train_path+train_list[d] for d in date_index]
     true_files_tmp = [true_path+true_list[d] for d in date_index]
 
-    train_val = np.zeros(shape=(N,nvar,Ny,Nx),dtype='float32')
+    train_val = np.zeros(shape=(N,nvar+1,Ny,Nx),dtype='float32')
     for i in range(EPOCH_SIZE):
         fopen = nc.Dataset(train_files_tmp[i])
         for j in range(nvar):
             train_val[i,j,:,:] = fopen[CHEM[j]][:]
+        train_val[i,-1,:,:] = np.full(CHIP_SHAPE, int(train_files_tmp[0][-11:-9])/23)
 
     true_val = np.zeros(shape=(N,n_stn))
     for i in range(EPOCH_SIZE):
@@ -80,22 +80,24 @@ import torch
 import torch.nn as nn
 import concurrent.futures # Module for multi processing, but not used in this script
 import gc
-from neural_net import edrn_core
+from neural_net import cnn_test
 from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
 from torch import optim
 from utils import normalize, denormalize
-
+#%%
+#edrn = edrn_core(nvar, n_block=5, n_stn=n_stn).to(DEVICE)
 DEVICE = torch.device('cuda')
-edrn = edrn_core(nvar, n_block=5, n_stn=n_stn).to(DEVICE)
+edrn = cnn_test().to(DEVICE, dtype=torch.float32)
 LEARNING_RATE = 1e-3
 optimizer = optim.SGD(edrn.parameters(), lr=LEARNING_RATE, weight_decay=1e-8)
 scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
 grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
+grad_scaler = optim.scheruler.ExponentialLR
 loss_function = nn.MSELoss()
 
 print("define train iteration")
-
+# %%
 def train(model):
     #save_dir = root_path + out_dir
     save_dir = '.' + out_dir
